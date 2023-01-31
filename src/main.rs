@@ -1,11 +1,15 @@
+use bytemuck::{Pod, Zeroable};
 use vulkano::{
+    buffer::{BufferUsage, CpuAccessibleBuffer},
     device::{
         physical::PhysicalDeviceType, Device, DeviceCreateInfo, DeviceExtensions, QueueCreateInfo,
     },
     image::{swapchain, ImageUsage},
+    impl_vertex,
     instance::{Instance, InstanceCreateInfo},
+    memory::allocator::StandardMemoryAllocator,
     swapchain::{Swapchain, SwapchainCreateInfo},
-    VulkanLibrary, memory::allocator::StandardMemoryAllocator,
+    VulkanLibrary,
 };
 use vulkano_win::VkSurfaceBuild;
 use winit::{
@@ -122,6 +126,69 @@ fn main() {
     };
 
     let memory_allocator = StandardMemoryAllocator::new_default(device.clone());
+
+    #[repr(C)]
+    #[derive(Clone, Copy, Debug, Default, Zeroable, Pod)]
+    struct Vertex {
+        position: [f32; 2],
+    }
+    impl_vertex!(Vertex, position);
+
+    let vertices = [
+        Vertex {
+            position: [-0.5, 0.25],
+        },
+        Vertex {
+            position: [0.0, 0.5],
+        },
+        Vertex {
+            position: [0.25, -0.1],
+        },
+    ];
+
+    let vertex_buffer = CpuAccessibleBuffer::from_iter(
+        &memory_allocator,
+        BufferUsage {
+            vertex_buffer: true,
+            ..BufferUsage::empty()
+        },
+        false,
+        vertices,
+    )
+    .unwrap();
+
+    mod vs {
+        vulkano_shaders::shader! {
+            ty: "vertex",
+            src: "
+            #version 450
+            
+            layout(location = 0) in vec2 position;
+
+            void main() {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+            ",
+        }
+    }
+
+    mod fs {
+        vulkano_shaders::shader! {
+            ty: "fragment",
+            src: "
+            #version 450
+            
+            layout(location = 0) out vec4 f_color;
+
+            void main() {
+                f_color = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+            ",
+        }
+    }
+
+    let vs = vs::load(device.clone()).unwrap();
+    let fs = fs::load(device.clone()).unwrap();
 
     // event_loop.run(move |event, _, control_flow| {
     //     *control_flow = ControlFlow::Wait;
