@@ -10,7 +10,7 @@ use vulkano::{
     device::{
         physical::PhysicalDeviceType, Device, DeviceCreateInfo, DeviceExtensions, QueueCreateInfo,
     },
-    image::{ view::ImageView, ImageAccess, ImageUsage, SwapchainImage},
+    image::{view::ImageView, ImageAccess, ImageUsage, SwapchainImage},
     impl_vertex,
     instance::{Instance, InstanceCreateInfo},
     memory::allocator::StandardMemoryAllocator,
@@ -43,11 +43,14 @@ fn main() {
 
     let library = VulkanLibrary::new().unwrap();
     let required_extensions = vulkano_win::required_extensions(&library);
+    let layers = vec!["VK_LAYER_KHRONOS_validation".to_owned()];
+
     let instance = Instance::new(
         library,
         InstanceCreateInfo {
             enabled_extensions: required_extensions,
             enumerate_portability: true,
+            enabled_layers: layers,
             ..Default::default()
         },
     )
@@ -155,13 +158,22 @@ fn main() {
 
     let vertices = [
         Vertex {
-            position: [-0.5, -0.25],
+            position: [-0.5, -0.5],
         },
         Vertex {
-            position: [0.0, 0.5],
+            position: [0.5, -0.5],
         },
         Vertex {
-            position: [0.25, -0.1],
+            position: [0.5, 0.5],
+        },
+        Vertex {
+            position: [-0.5, 0.5],
+        },
+        Vertex {
+            position: [-0.5, -0.5],
+        },
+        Vertex {
+            position: [0.5, 0.5],
         },
     ];
 
