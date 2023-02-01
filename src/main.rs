@@ -42,8 +42,17 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let library = VulkanLibrary::new().unwrap();
+
+    println!("List of Vulkan debugging layers available to use:");
+    let layers = library.layer_properties().unwrap();
+    for l in layers {
+        println!("\t{}", l.name());
+    }
     let required_extensions = vulkano_win::required_extensions(&library);
-    let layers = vec!["VK_LAYER_KHRONOS_validation".to_owned()];
+    let layers = vec![
+        "VK_LAYER_KHRONOS_validation".to_owned(),
+        // "VK_LAYER_LUNARG_api_dump".to_owned(),
+    ];
 
     let instance = Instance::new(
         library,
