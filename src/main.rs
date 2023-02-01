@@ -257,13 +257,8 @@ fn main() {
         Vertex {
             position: [-0.5, 0.5],
         },
-        Vertex {
-            position: [-0.5, -0.5],
-        },
-        Vertex {
-            position: [0.5, 0.5],
-        },
     ];
+    let indices = vec![0u16, 1u16, 2u16, 3u16, 0u16, 2u16];
 
     let vertex_buffer = CpuAccessibleBuffer::from_iter(
         &memory_allocator,
@@ -273,6 +268,16 @@ fn main() {
         },
         false,
         vertices,
+    )
+    .unwrap();
+    let index_buffer = CpuAccessibleBuffer::from_iter(
+        &memory_allocator,
+        BufferUsage {
+            index_buffer: true,
+            ..BufferUsage::empty()
+        },
+        false,
+        indices,
     )
     .unwrap();
 
@@ -411,7 +416,8 @@ fn main() {
                 .set_viewport(0, [viewport.clone()])
                 .bind_pipeline_graphics(pipeline.clone())
                 .bind_vertex_buffers(0, vertex_buffer.clone())
-                .draw(vertex_buffer.len() as u32, 1, 0, 0)
+                .bind_index_buffer(index_buffer.clone())
+                .draw_indexed(index_buffer.len() as u32, 1, 0, 0, 0)
                 .unwrap()
                 .end_rendering()
                 .unwrap();
