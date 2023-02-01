@@ -12,7 +12,13 @@ use vulkano::{
     },
     image::{view::ImageView, ImageAccess, ImageUsage, SwapchainImage},
     impl_vertex,
-    instance::{Instance, InstanceCreateInfo},
+    instance::{
+        debug::{
+            DebugUtilsMessageSeverity, DebugUtilsMessageType, DebugUtilsMessenger,
+            DebugUtilsMessengerCreateInfo,
+        },
+        Instance, InstanceCreateInfo, InstanceExtensions,
+    },
     memory::allocator::StandardMemoryAllocator,
     pipeline::{
         graphics::{
@@ -43,31 +49,99 @@ fn main() {
 
     let library = VulkanLibrary::new().unwrap();
 
-    println!("List of Vulkan debugging layers available to use:");
-    let layers = library.layer_properties().unwrap();
-    for l in layers {
-        println!("\t{}", l.name());
+    #[cfg(feature = "vulkan-debug")]
+    {
+        println!("List of Vulkan debugging layers available to use:");
+        let layers = library.layer_properties().unwrap();
+        for l in layers {
+            println!("\t{}", l.name());
+        }
     }
+
     let required_extensions = vulkano_win::required_extensions(&library);
+    #[cfg(feature = "vulkan-debug")]
+    let enabled_extensions = required_extensions.union(&InstanceExtensions {
+        ext_debug_utils: true,
+        ..InstanceExtensions::empty()
+    });
+    #[cfg(not(feature = "vulkan-debug"))]
+    let enabled_extensions = required_extensions;
+
+    #[cfg(feature = "vulkan-debug")]
     let layers = vec![
         "VK_LAYER_KHRONOS_validation".to_owned(),
         // "VK_LAYER_LUNARG_api_dump".to_owned(),
     ];
+    #[cfg(not(feature = "vulkan-debug"))]
+    let layers = vec![];
 
     let instance = Instance::new(
         library,
         InstanceCreateInfo {
-            enabled_extensions: required_extensions,
+            enabled_extensions,
             enumerate_portability: true,
             enabled_layers: layers,
             ..Default::default()
         },
     )
-    .unwrap();
+    .expect("Failed to create vulkan instance");
+
+    let _debug_callback = unsafe {
+        DebugUtilsMessenger::new(
+            instance.clone(),
+            DebugUtilsMessengerCreateInfo {
+                message_severity: DebugUtilsMessageSeverity {
+                    error: true,
+                    warning: true,
+                    information: true,
+                    verbose: true,
+                    ..DebugUtilsMessageSeverity::empty()
+                },
+                message_type: DebugUtilsMessageType {
+                    general: true,
+                    validation: true,
+                    performance: true,
+                    ..DebugUtilsMessageType::empty()
+                },
+                ..DebugUtilsMessengerCreateInfo::user_callback(Arc::new(|msg| {
+                    let severity = if msg.severity.error {
+                        "error"
+                    } else if msg.severity.warning {
+                        "warning"
+                    } else if msg.severity.information {
+                        "information"
+                    } else if msg.severity.verbose {
+                        "verbose"
+                    } else {
+                        panic!("no-impl");
+                    };
+
+                    let ty = if msg.ty.general {
+                        "general"
+                    } else if msg.ty.validation {
+                        "validation"
+                    } else if msg.ty.performance {
+                        "performance"
+                    } else {
+                        panic!("no-impl");
+                    };
+
+                    println!(
+                        "{} {} {}: {}",
+                        msg.layer_prefix.unwrap_or("unknown"),
+                        ty,
+                        severity,
+                        msg.description
+                    );
+                }))
+            },
+        )
+        .ok()
+    };
 
     let surface = WindowBuilder::new()
         .build_vk_surface(&event_loop, instance.clone())
-        .unwrap();
+        .expect("Failed to build a vulkan surface");
 
     let device_extensions = DeviceExtensions {
         khr_swapchain: true,
