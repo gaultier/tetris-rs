@@ -1,7 +1,7 @@
-use std::{f32::consts::FRAC_PI_2, sync::Arc, time::Instant};
+use std::{f32::consts::FRAC_PI_2, sync::Arc};
 
 use bytemuck::{Pod, Zeroable};
-use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
+use cgmath::{Matrix4, Point3, Rad, Vector2, Vector3};
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess},
     command_buffer::{
@@ -43,7 +43,7 @@ use vulkano::{
 };
 use vulkano_win::VkSurfaceBuild;
 use winit::{
-    event::{Event, WindowEvent},
+    event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
@@ -367,7 +367,9 @@ fn main() {
     let mut recreate_swapchain = false;
 
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
-    let rotation_start = Instant::now();
+
+    let mut tetramino_position = Vector2::new(0.0, 0.0);
+    let dx = 0.5;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
@@ -379,6 +381,34 @@ fn main() {
             ..
         } => {
             recreate_swapchain = true;
+        }
+        Event::WindowEvent {
+            event:
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            virtual_keycode: Some(VirtualKeyCode::Left),
+                            ..
+                        },
+                    ..
+                },
+            ..
+        } => {
+            tetramino_position.x += dx;
+        }
+        Event::WindowEvent {
+            event:
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            virtual_keycode: Some(VirtualKeyCode::Right),
+                            ..
+                        },
+                    ..
+                },
+            ..
+        } => {
+            tetramino_position.x -= dx;
         }
         Event::RedrawEventsCleared => {
             let window = surface.object().unwrap().downcast_ref::<Window>().unwrap();
@@ -404,10 +434,6 @@ fn main() {
             }
 
             let uniform_buffer_subbuffer = {
-                let elapsed = rotation_start.elapsed();
-                let rotation = elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1e9;
-                let rotation = Matrix3::from_angle_y(Rad(rotation as f32));
-
                 let w = swapchain.image_extent()[0] as f32;
                 let h = swapchain.image_extent()[1] as f32;
                 let aspect_ratio = w / h;
@@ -416,7 +442,7 @@ fn main() {
                 let fov = Rad(FRAC_PI_2);
                 let proj = cgmath::perspective(fov, aspect_ratio, near, far);
 
-                let eye = Point3::new(0.3, 0.3, 1.0);
+                let eye = Point3::new(0.0, 0.0, 1.0);
                 let center = Point3::new(0.0, 0.0, 0.0);
                 let up = Vector3::new(0.0, -1.0, 0.0);
                 let view = Matrix4::look_at_rh(eye, center, up);
@@ -424,8 +450,11 @@ fn main() {
                 let scale = Matrix4::from_scale(0.2);
 
                 let uniform_data = vs::ty::Data {
-                    world: (Matrix4::from(rotation)
-                        * Matrix4::from_translation(Vector3::new(-0.5, -0.5, 0.0)))
+                    world: Matrix4::from_translation(Vector3::new(
+                        tetramino_position.x,
+                        tetramino_position.y,
+                        0.0,
+                    ))
                     .into(),
                     view: (view * scale).into(),
                     proj: proj.into(),
