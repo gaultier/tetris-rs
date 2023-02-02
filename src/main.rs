@@ -248,6 +248,14 @@ fn main() {
     }
     impl_vertex!(Vertex, position);
 
+    #[repr(C)]
+    #[derive(Clone, Copy, Debug, Default, Zeroable, Pod)]
+    struct InstanceData {
+        position_offset: [f32; 2],
+        color: [f32; 3],
+    }
+    impl_vertex!(InstanceData, position_offset, color);
+
     let vertices = [
         Vertex {
             position: [0.0, 0.0],
@@ -274,6 +282,28 @@ fn main() {
         vertices,
     )
     .unwrap();
+
+    let instances = vec![
+        InstanceData {
+            position_offset: [1.0, 2.0],
+            color: [1.0, 0.0, 0.0],
+        },
+        InstanceData {
+            position_offset: [3.0, 3.0],
+            color: [0.0, 1.0, 0.0],
+        },
+    ];
+    let instance_buffer = CpuAccessibleBuffer::from_iter(
+        &memory_allocator,
+        BufferUsage {
+            vertex_buffer: true,
+            ..BufferUsage::empty()
+        },
+        false,
+        instances,
+    )
+    .unwrap();
+
     let index_buffer = CpuAccessibleBuffer::from_iter(
         &memory_allocator,
         BufferUsage {
@@ -302,7 +332,11 @@ fn main() {
             color_attachment_formats: vec![Some(swapchain.image_format())],
             ..Default::default()
         })
-        .vertex_input_state(BuffersDefinition::new().vertex::<Vertex>())
+        .vertex_input_state(
+            BuffersDefinition::new()
+                .vertex::<Vertex>()
+                .instance::<InstanceData>(),
+        )
         .input_assembly_state(InputAssemblyState::new())
         .vertex_shader(vs.entry_point("main").unwrap(), ())
         .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
@@ -379,7 +413,7 @@ fn main() {
                 let up = Vector3::new(0.0, -1.0, 0.0);
                 let view = Matrix4::look_at_rh(eye, center, up);
 
-                let scale = Matrix4::from_scale(0.5);
+                let scale = Matrix4::from_scale(0.1);
 
                 let uniform_data = vs::ty::Data {
                     world: (Matrix4::from(rotation)
@@ -445,9 +479,15 @@ fn main() {
                     0,
                     set,
                 )
-                .bind_vertex_buffers(0, vertex_buffer.clone())
+                .bind_vertex_buffers(0, (vertex_buffer.clone(), instance_buffer.clone()))
                 .bind_index_buffer(index_buffer.clone())
-                .draw_indexed(index_buffer.len() as u32, 1, 0, 0, 0)
+                .draw_indexed(
+                    index_buffer.len() as u32,
+                    instance_buffer.len() as u32,
+                    0,
+                    0,
+                    0,
+                )
                 .unwrap()
                 .end_rendering()
                 .unwrap();
