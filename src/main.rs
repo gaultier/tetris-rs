@@ -1,11 +1,15 @@
-use std::sync::Arc;
+use std::{f32::consts::FRAC_PI_2, sync::Arc, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
+use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 use vulkano::{
-    buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess},
+    buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess},
     command_buffer::{
         allocator::StandardCommandBufferAllocator, AutoCommandBufferBuilder, CommandBufferUsage,
         RenderingAttachmentInfo, RenderingInfo,
+    },
+    descriptor_set::{
+        allocator::StandardDescriptorSetAllocator, PersistentDescriptorSet, WriteDescriptorSet,
     },
     device::{
         physical::PhysicalDeviceType, Device, DeviceCreateInfo, DeviceExtensions, Features,
@@ -20,7 +24,7 @@ use vulkano::{
         },
         Instance, InstanceCreateInfo, InstanceExtensions,
     },
-    memory::allocator::StandardMemoryAllocator,
+    memory::allocator::{MemoryUsage, StandardMemoryAllocator},
     pipeline::{
         graphics::{
             input_assembly::InputAssemblyState,
@@ -28,7 +32,7 @@ use vulkano::{
             vertex_input::BuffersDefinition,
             viewport::{Viewport, ViewportState},
         },
-        GraphicsPipeline,
+        GraphicsPipeline, Pipeline, PipelineBindPoint,
     },
     swapchain::{
         acquire_next_image, AcquireError, Swapchain, SwapchainCreateInfo, SwapchainCreationError,
@@ -235,7 +239,7 @@ fn main() {
         .unwrap()
     };
 
-    let memory_allocator = StandardMemoryAllocator::new_default(device.clone());
+    let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
 
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Default, Zeroable, Pod)]
@@ -281,35 +285,14 @@ fn main() {
     )
     .unwrap();
 
-    mod vs {
-        vulkano_shaders::shader! {
-            ty: "vertex",
-            src: "
-            #version 450
-            
-            layout(location = 0) in vec2 position;
-
-            void main() {
-                gl_Position = vec4(position, 0.0, 1.0);
-            }
-            ",
-        }
-    }
-
-    mod fs {
-        vulkano_shaders::shader! {
-            ty: "fragment",
-            src: "
-            #version 450
-            
-            layout(location = 0) out vec4 f_color;
-
-            void main() {
-                f_color = vec4(1.0, 0.0, 0.0, 1.0);
-            }
-            ",
-        }
-    }
+    let uniform_buffer = CpuBufferPool::<vs::ty::Data>::new(
+        memory_allocator.clone(),
+        BufferUsage {
+            uniform_buffer: true,
+            ..BufferUsage::empty()
+        },
+        MemoryUsage::Upload,
+    );
 
     let vs = vs::load(device.clone()).unwrap();
     let fs = fs::load(device.clone()).unwrap();
@@ -335,12 +318,14 @@ fn main() {
 
     let mut attachment_image_views = window_size_dependent_setup(&images, &mut viewport);
 
+    let descriptor_set_allocator = StandardDescriptorSetAllocator::new(device.clone());
     let command_buffer_allocator =
         StandardCommandBufferAllocator::new(device.clone(), Default::default());
 
     let mut recreate_swapchain = false;
 
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
+    let rotation_start = Instant::now();
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
@@ -375,6 +360,43 @@ fn main() {
                 attachment_image_views = window_size_dependent_setup(&new_images, &mut viewport);
                 recreate_swapchain = false;
             }
+
+            let uniform_buffer_subbuffer = {
+                let elapsed = rotation_start.elapsed();
+                let rotation = elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1e9;
+                let rotation = Matrix3::from_angle_y(Rad(rotation as f32));
+
+                let w = swapchain.image_extent()[0] as f32;
+                let h = swapchain.image_extent()[1] as f32;
+                let aspect_ratio = w / h;
+                let near = 0.01;
+                let far = 100.0;
+                let fov = Rad(FRAC_PI_2);
+                let proj = cgmath::perspective(fov, aspect_ratio, near, far);
+
+                let eye = Point3::new(0.3, 0.3, 1.0);
+                let center = Point3::new(0.0, 0.0, 0.0);
+                let up = Vector3::new(0.0, -1.0, 0.0);
+                let view = Matrix4::look_at_rh(eye, center, up);
+
+                let scale = Matrix4::from_scale(1.0);
+
+                let uniform_data = vs::ty::Data {
+                    world: Matrix4::from(rotation).into(),
+                    view: (view * scale).into(),
+                    proj: proj.into(),
+                };
+
+                uniform_buffer.from_data(uniform_data).unwrap()
+            };
+
+            let layout = pipeline.layout().set_layouts().get(0).unwrap();
+            let set = PersistentDescriptorSet::new(
+                &descriptor_set_allocator,
+                layout.clone(),
+                [WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)],
+            )
+            .unwrap();
 
             let (image_index, suboptimal, acquire_future) =
                 match acquire_next_image(swapchain.clone(), None) {
@@ -415,6 +437,12 @@ fn main() {
                 .unwrap()
                 .set_viewport(0, [viewport.clone()])
                 .bind_pipeline_graphics(pipeline.clone())
+                .bind_descriptor_sets(
+                    PipelineBindPoint::Graphics,
+                    pipeline.layout().clone(),
+                    0,
+                    set,
+                )
                 .bind_vertex_buffers(0, vertex_buffer.clone())
                 .bind_index_buffer(index_buffer.clone())
                 .draw_indexed(index_buffer.len() as u32, 1, 0, 0, 0)
@@ -461,4 +489,23 @@ fn window_size_dependent_setup(
         .iter()
         .map(|image| ImageView::new_default(image.clone()).unwrap())
         .collect::<Vec<_>>()
+}
+
+mod vs {
+    vulkano_shaders::shader! {
+        ty: "vertex",
+        path:"src/vert.glsl",
+        types_meta: {
+            use bytemuck::{Pod, Zeroable};
+
+            #[derive(Clone, Copy, Zeroable, Pod)]
+        },
+    }
+}
+
+mod fs {
+    vulkano_shaders::shader! {
+        ty: "fragment",
+        path: "src/frag.glsl",
+    }
 }
