@@ -382,7 +382,9 @@ fn main() {
                 let scale = Matrix4::from_scale(0.5);
 
                 let uniform_data = vs::ty::Data {
-                    world: Matrix4::from(rotation).into(),
+                    world: (Matrix4::from(rotation)
+                        * Matrix4::from_translation(Vector3::new(-0.5, 0.0, 0.0)))
+                    .into(),
                     view: (view * scale).into(),
                     proj: proj.into(),
                 };
