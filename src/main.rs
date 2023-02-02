@@ -250,16 +250,16 @@ fn main() {
 
     let vertices = [
         Vertex {
-            position: [-0.5, -0.5],
+            position: [0.0, 0.0],
         },
         Vertex {
-            position: [0.5, -0.5],
+            position: [0.0, 1.0],
         },
         Vertex {
-            position: [0.5, 0.5],
+            position: [1.0, 1.0],
         },
         Vertex {
-            position: [-0.5, 0.5],
+            position: [1.0, 0.0],
         },
     ];
     let indices = vec![0u16, 1u16, 2u16, 3u16, 0u16, 2u16];
@@ -379,7 +379,7 @@ fn main() {
                 let up = Vector3::new(0.0, -1.0, 0.0);
                 let view = Matrix4::look_at_rh(eye, center, up);
 
-                let scale = Matrix4::from_scale(1.0);
+                let scale = Matrix4::from_scale(0.5);
 
                 let uniform_data = vs::ty::Data {
                     world: Matrix4::from(rotation).into(),
