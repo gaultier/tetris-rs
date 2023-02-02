@@ -368,8 +368,7 @@ fn main() {
 
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
 
-    let mut tetramino_position = Vector2::new(0.0, 0.0);
-    let dx = 0.5;
+    let mut position = Vector2::new(-0.5, -0.5);
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
@@ -394,7 +393,7 @@ fn main() {
                 },
             ..
         } => {
-            tetramino_position.x += dx;
+            todo!();
         }
         Event::WindowEvent {
             event:
@@ -408,7 +407,7 @@ fn main() {
                 },
             ..
         } => {
-            tetramino_position.x -= dx;
+            todo!();
         }
         Event::RedrawEventsCleared => {
             let window = surface.object().unwrap().downcast_ref::<Window>().unwrap();
@@ -447,15 +446,11 @@ fn main() {
                 let up = Vector3::new(0.0, -1.0, 0.0);
                 let view = Matrix4::look_at_rh(eye, center, up);
 
-                let scale = Matrix4::from_scale(0.2);
+                let scale = Matrix4::from_scale(0.25);
 
                 let uniform_data = vs::ty::Data {
-                    world: Matrix4::from_translation(Vector3::new(
-                        tetramino_position.x,
-                        tetramino_position.y,
-                        0.0,
-                    ))
-                    .into(),
+                    world: Matrix4::from_translation(Vector3::new(position.x, position.y, 0.0))
+                        .into(),
                     view: (view * scale).into(),
                     proj: proj.into(),
                 };
