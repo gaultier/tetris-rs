@@ -1,9 +1,9 @@
 #version 450
 
 // Vertex positions
-layout(location = 0) in vec2 position;
+layout(location = 0) in vec3 position;
 // Per-instance data
-layout(location = 1) in vec2 position_offset;
+layout(location = 1) in vec3 position_offset;
 layout(location = 2) in vec3 color;
 
 
@@ -17,7 +17,7 @@ layout(set = 0, binding = 0) uniform Data {
 
 void main() {
     mat4 worldview = uniforms.view * uniforms.world;
-    gl_Position = uniforms.proj * worldview * vec4(position + position_offset, 0.0, 1.0);
+    gl_Position = uniforms.proj * worldview * vec4(position + position_offset,  1.0);
 
     out_color = color;
 }

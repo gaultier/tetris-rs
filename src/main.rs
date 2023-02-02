@@ -1,7 +1,7 @@
-use std::{f32::consts::FRAC_PI_2, sync::Arc};
+use std::{f32::consts::FRAC_PI_2, sync::Arc, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
-use cgmath::{Matrix4, Point3, Rad, Vector2, Vector3};
+use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess},
     command_buffer::{
@@ -244,30 +244,30 @@ fn main() {
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Default, Zeroable, Pod)]
     struct Vertex {
-        position: [f32; 2],
+        position: [f32; 3],
     }
     impl_vertex!(Vertex, position);
 
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Default, Zeroable, Pod)]
     struct InstanceData {
-        position_offset: [f32; 2],
+        position_offset: [f32; 3],
         color: [f32; 3],
     }
     impl_vertex!(InstanceData, position_offset, color);
 
     let vertices = [
         Vertex {
-            position: [0.0, 0.0],
+            position: [0.0, 0.0, 0.0],
         },
         Vertex {
-            position: [0.0, 1.0],
+            position: [0.0, 1.0, 0.0],
         },
         Vertex {
-            position: [1.0, 1.0],
+            position: [1.0, 1.0, 0.0],
         },
         Vertex {
-            position: [1.0, 0.0],
+            position: [1.0, 0.0, 0.0],
         },
     ];
     let indices = vec![0u16, 1u16, 2u16, 3u16, 0u16, 2u16];
@@ -285,21 +285,21 @@ fn main() {
 
     let instances = vec![
         InstanceData {
-            position_offset: [0.0, 0.0],
+            position_offset: [0.0, 0.0, 0.0],
             color: [1.0, 0.0, 0.0],
         },
-        InstanceData {
-            position_offset: [1.0, 0.0],
-            color: [0.0, 1.0, 0.0],
-        },
-        InstanceData {
-            position_offset: [0.0, 1.0],
-            color: [1.0, 0.0, 1.0],
-        },
-        InstanceData {
-            position_offset: [0.0, 2.0],
-            color: [0.0, 1.0, 1.0],
-        },
+        // InstanceData {
+        //     position_offset: [1.0, 0.0],
+        //     color: [0.0, 1.0, 0.0],
+        // },
+        // InstanceData {
+        //     position_offset: [0.0, 1.0],
+        //     color: [1.0, 0.0, 1.0],
+        // },
+        // InstanceData {
+        //     position_offset: [0.0, 2.0],
+        //     color: [0.0, 1.0, 1.0],
+        // },
     ];
     let instance_buffer = CpuAccessibleBuffer::from_iter(
         &memory_allocator,
@@ -368,8 +368,9 @@ fn main() {
 
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
 
-    let mut position = Vector2::new(-0.5, -0.5);
+    let position = Vector3::new(-0.5, -0.5, 0.5);
 
+    let rotation_start = Instant::now();
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
             event: WindowEvent::CloseRequested,
@@ -433,6 +434,11 @@ fn main() {
             }
 
             let uniform_buffer_subbuffer = {
+                let elapsed = rotation_start.elapsed();
+                let rotation =
+                    elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
+                let rotation = Matrix3::from_angle_y(Rad(rotation as f32));
+
                 let w = swapchain.image_extent()[0] as f32;
                 let h = swapchain.image_extent()[1] as f32;
                 let aspect_ratio = w / h;
@@ -449,8 +455,9 @@ fn main() {
                 let scale = Matrix4::from_scale(0.25);
 
                 let uniform_data = vs::ty::Data {
-                    world: Matrix4::from_translation(Vector3::new(position.x, position.y, 0.0))
-                        .into(),
+                    world: (Matrix4::from(rotation)
+                        * Matrix4::from_translation(position))
+                    .into(),
                     view: (view * scale).into(),
                     proj: proj.into(),
                 };
