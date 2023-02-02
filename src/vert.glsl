@@ -1,7 +1,7 @@
 #version 450
 
-layout(location = 0) in vec2 position;
-layout(location = 0) out vec2 out_color;
+layout(location = 0) in vec3 position;
+layout(location = 0) out vec3 out_color;
 
 layout(set = 0, binding = 0) uniform Data {
     mat4 world;
@@ -11,7 +11,7 @@ layout(set = 0, binding = 0) uniform Data {
 
 void main() {
     mat4 worldview = uniforms.view * uniforms.world;
-    gl_Position = uniforms.proj * worldview * vec4(position, 0.0, 1.0);
+    gl_Position = uniforms.proj * worldview * vec4(position, 1.0);
     out_color = position;
 }
 
