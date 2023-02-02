@@ -368,8 +368,8 @@ fn main() {
 
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
 
-    let mut tetramino_position = Vector2::new(0.0, 0.0);
-    let dx = 0.5;
+    let mut tetramino_offset = Vector2::new(-0.5, -0.5);
+    let dx = 0.25;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
@@ -394,7 +394,7 @@ fn main() {
                 },
             ..
         } => {
-            tetramino_position.x += dx;
+            tetramino_offset.x += dx;
         }
         Event::WindowEvent {
             event:
@@ -408,7 +408,35 @@ fn main() {
                 },
             ..
         } => {
-            tetramino_position.x -= dx;
+            tetramino_offset.x -= dx;
+        }
+        Event::WindowEvent {
+            event:
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            virtual_keycode: Some(VirtualKeyCode::Up),
+                            ..
+                        },
+                    ..
+                },
+            ..
+        } => {
+            todo!();
+        }
+        Event::WindowEvent {
+            event:
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            virtual_keycode: Some(VirtualKeyCode::Down),
+                            ..
+                        },
+                    ..
+                },
+            ..
+        } => {
+            todo!();
         }
         Event::RedrawEventsCleared => {
             let window = surface.object().unwrap().downcast_ref::<Window>().unwrap();
@@ -434,30 +462,36 @@ fn main() {
             }
 
             let uniform_buffer_subbuffer = {
-                let w = swapchain.image_extent()[0] as f32;
-                let h = swapchain.image_extent()[1] as f32;
-                let aspect_ratio = w / h;
-                let near = 0.01;
-                let far = 100.0;
-                let fov = Rad(FRAC_PI_2);
-                let proj = cgmath::perspective(fov, aspect_ratio, near, far);
+                // let w = swapchain.image_extent()[0] as f32;
+                // let h = swapchain.image_extent()[1] as f32;
+                // let aspect_ratio = w / h;
+                // let near = 0.01;
+                // let far = 1.0;
+                // let fov = Rad(FRAC_PI_2);
+                // let proj = cgmath::perspective(fov, aspect_ratio, near, far);
 
-                let eye = Point3::new(0.0, 0.0, 1.0);
-                let center = Point3::new(0.0, 0.0, 0.0);
-                let up = Vector3::new(0.0, -1.0, 0.0);
-                let view = Matrix4::look_at_rh(eye, center, up);
+                // let eye = Point3::new(0.0, 0.0, 1.0);
+                // let center = Point3::new(0.0, 0.0, 0.0);
+                // let up = Vector3::new(0.0, -1.0, 0.0);
+                // let view = Matrix4::look_at_rh(eye, center, up);
 
-                let scale = Matrix4::from_scale(0.2);
+                // let cols = 4;
+                // let scale_factor = 1.0 / cols as f32;
+                // let scale = Matrix4::from_scale(scale_factor);
+                // let col_width = w / cols as f32;
+                // dx = col_width;
 
+                // let scale = Matrix4::from_scale(1.0);
                 let uniform_data = vs::ty::Data {
-                    world: Matrix4::from_translation(Vector3::new(
-                        tetramino_position.x,
-                        tetramino_position.y,
-                        0.0,
-                    ))
-                    .into(),
-                    view: (view * scale).into(),
-                    proj: proj.into(),
+                    // world: Matrix4::from_translation(Vector3::new(
+                    //     tetramino_position.x,
+                    //     tetramino_position.y,
+                    //     0.0,
+                    // ))
+                    // .into(),
+                    // view: (view * scale).into(),
+                    // proj: proj.into(),
+                    tetramino_offset: tetramino_offset.into(),
                 };
 
                 uniform_buffer.from_data(uniform_data).unwrap()
