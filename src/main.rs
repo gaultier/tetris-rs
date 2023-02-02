@@ -1,7 +1,7 @@
-use std::{f32::consts::FRAC_PI_2, sync::Arc};
+use std::sync::Arc;
 
 use bytemuck::{Pod, Zeroable};
-use cgmath::{Matrix4, Point3, Rad, Vector2, Vector3};
+use cgmath::Vector2;
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess},
     command_buffer::{
@@ -300,6 +300,10 @@ fn main() {
             position_offset: [0.0, 2.0],
             color: [0.0, 1.0, 1.0],
         },
+        InstanceData {
+            position_offset: [0.0, 3.0],
+            color: [0.5, 1.0, 1.0],
+        },
     ];
     let instance_buffer = CpuAccessibleBuffer::from_iter(
         &memory_allocator,
@@ -369,7 +373,8 @@ fn main() {
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
 
     let mut tetramino_position = Vector2::new(0.0, 0.0);
-    let dx = 0.5;
+    let scale = 0.2;
+    let dx = 1.0;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
@@ -434,31 +439,7 @@ fn main() {
             }
 
             let uniform_buffer_subbuffer = {
-                let w = swapchain.image_extent()[0] as f32;
-                let h = swapchain.image_extent()[1] as f32;
-                let aspect_ratio = w / h;
-                let near = 0.01;
-                let far = 100.0;
-                let fov = Rad(FRAC_PI_2);
-                let proj = cgmath::perspective(fov, aspect_ratio, near, far);
-
-                let eye = Point3::new(0.0, 0.0, 1.0);
-                let center = Point3::new(0.0, 0.0, 0.0);
-                let up = Vector3::new(0.0, -1.0, 0.0);
-                let view = Matrix4::look_at_rh(eye, center, up);
-
-                let scale = Matrix4::from_scale(0.2);
-
-                let uniform_data = vs::ty::Data {
-                    world: Matrix4::from_translation(Vector3::new(
-                        tetramino_position.x,
-                        tetramino_position.y,
-                        0.0,
-                    ))
-                    .into(),
-                    view: (view * scale).into(),
-                    proj: proj.into(),
-                };
+                let uniform_data = vs::ty::Data { scale };
 
                 uniform_buffer.from_data(uniform_data).unwrap()
             };
