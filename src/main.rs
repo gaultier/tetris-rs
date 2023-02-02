@@ -244,22 +244,22 @@ fn main() {
     #[repr(C)]
     #[derive(Clone, Copy, Debug, Default, Zeroable, Pod)]
     struct Vertex {
-        position: [f32; 3],
+        position: [f32; 2],
     }
     impl_vertex!(Vertex, position);
 
     let vertices = [
         Vertex {
-            position: [0.0, 0.0, 0.0],
+            position: [0.0, 0.0],
         },
         Vertex {
-            position: [0.0, 1.0, 0.0],
+            position: [0.0, 1.0],
         },
         Vertex {
-            position: [1.0, 1.0, 0.0],
+            position: [1.0, 1.0],
         },
         Vertex {
-            position: [1.0, 0.0, 0.0],
+            position: [1.0, 0.0],
         },
     ];
     let indices = vec![0u16, 1u16, 2u16, 3u16, 0u16, 2u16];
