@@ -285,12 +285,20 @@ fn main() {
 
     let instances = vec![
         InstanceData {
-            position_offset: [1.0, 2.0],
+            position_offset: [0.0, 0.0],
             color: [1.0, 0.0, 0.0],
         },
         InstanceData {
-            position_offset: [3.0, 3.0],
+            position_offset: [1.0, 0.0],
             color: [0.0, 1.0, 0.0],
+        },
+        InstanceData {
+            position_offset: [0.0, 1.0],
+            color: [1.0, 0.0, 1.0],
+        },
+        InstanceData {
+            position_offset: [0.0, 2.0],
+            color: [0.0, 1.0, 1.0],
         },
     ];
     let instance_buffer = CpuAccessibleBuffer::from_iter(
@@ -413,11 +421,11 @@ fn main() {
                 let up = Vector3::new(0.0, -1.0, 0.0);
                 let view = Matrix4::look_at_rh(eye, center, up);
 
-                let scale = Matrix4::from_scale(0.1);
+                let scale = Matrix4::from_scale(0.2);
 
                 let uniform_data = vs::ty::Data {
                     world: (Matrix4::from(rotation)
-                        * Matrix4::from_translation(Vector3::new(-0.5, 0.0, 0.0)))
+                        * Matrix4::from_translation(Vector3::new(-0.5, -0.5, 0.0)))
                     .into(),
                     view: (view * scale).into(),
                     proj: proj.into(),
@@ -463,7 +471,7 @@ fn main() {
                         // Store the rendering result in the attachment image (instead of
                         // discarding it)
                         store_op: vulkano::render_pass::StoreOp::Store,
-                        clear_value: Some([0.0, 0.0, 1.0, 1.0].into()),
+                        clear_value: Some([1.0, 1.0, 1.0, 1.0].into()),
                         ..RenderingAttachmentInfo::image_view(
                             attachment_image_views[image_index as usize].clone(),
                         )
