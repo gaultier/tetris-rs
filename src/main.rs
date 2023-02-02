@@ -257,20 +257,66 @@ fn main() {
     impl_vertex!(InstanceData, position_offset, color);
 
     let vertices = [
+        // 0: A
         Vertex {
             position: [0.0, 0.0, 0.0],
         },
+        // 1: B
         Vertex {
             position: [0.0, 1.0, 0.0],
         },
+        // 2: C
         Vertex {
             position: [1.0, 1.0, 0.0],
         },
+        // 3: D
         Vertex {
             position: [1.0, 0.0, 0.0],
         },
+        // 4: E
+        Vertex {
+            position: [1.0, 0.0, 1.0],
+        },
+        // 5: F
+        Vertex {
+            position: [1.0, 1.0, 1.0],
+        },
+        // 6: G
+        Vertex {
+            position: [0.0, 0.0, 1.0],
+        },
+        // 7: H
+        Vertex {
+            position: [0.0, 1.0, 1.0],
+        },
     ];
-    let indices = vec![0u16, 1u16, 2u16, 3u16, 0u16, 2u16];
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    let indices = vec![
+        // ABC
+        0u16, 1u16, 2u16,
+        // DAB
+        3u16, 0u16, 2u16,
+        // DCE
+        3u16, 2u16, 4u16,
+        // CEF
+        2u16, 4u16, 5u16,
+        // BAG
+        1u16, 0u16, 6u16,
+        // BGH
+        1u16, 6u16, 7u16,
+        // GHF
+        6u16, 7u16, 5u16,
+        // GFE
+        6u16, 5u16, 4u16,
+        // ADG
+        0u16, 3u16, 6u16,
+        // GDE
+        6u16, 3u16, 4u16,
+        // BCH
+        1u16, 2u16, 7u16,
+        // BCF
+        1u16, 2u16, 5u16,
+    ];
 
     let vertex_buffer = CpuAccessibleBuffer::from_iter(
         &memory_allocator,
@@ -455,9 +501,7 @@ fn main() {
                 let scale = Matrix4::from_scale(0.25);
 
                 let uniform_data = vs::ty::Data {
-                    world: (Matrix4::from(rotation)
-                        * Matrix4::from_translation(position))
-                    .into(),
+                    world: (Matrix4::from(rotation) * Matrix4::from_translation(position)).into(),
                     view: (view * scale).into(),
                     proj: proj.into(),
                 };

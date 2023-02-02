@@ -19,6 +19,6 @@ void main() {
     mat4 worldview = uniforms.view * uniforms.world;
     gl_Position = uniforms.proj * worldview * vec4(position + position_offset,  1.0);
 
-    out_color = color;
+    out_color = position;
 }
 
