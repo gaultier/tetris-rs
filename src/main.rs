@@ -72,7 +72,7 @@ fn main() {
         ..InstanceExtensions::empty()
     });
     #[cfg(not(feature = "vulkan-debug"))]
-    let enabled_extensions = required_extensions;
+    let enabled_extensions: InstanceExtensions = required_extensions;
 
     #[cfg(feature = "vulkan-debug")]
     let layers = vec![
@@ -497,7 +497,7 @@ fn main() {
                 }) {
                     Ok(r) => r,
                     Err(SwapchainCreationError::ImageExtentNotSupported { .. }) => return,
-                    Err(e) => panic!("Failed to recreate swapchain: {:?}", e),
+                    Err(e) => panic!("Failed to recreate swapchain: {e:?}"),
                 };
                 swapchain = new_swapchain;
                 attachment_image_views = window_size_dependent_setup(&new_images, &mut viewport);
@@ -549,7 +549,7 @@ fn main() {
                         recreate_swapchain = true;
                         return;
                     }
-                    Err(e) => panic!("Failed to acquire next image: {:?}", e),
+                    Err(e) => panic!("Failed to acquire next image: {e:?}"),
                 };
 
             if suboptimal {
@@ -628,7 +628,7 @@ fn main() {
                     recreate_swapchain = true;
                     previous_frame_end = Some(sync::now(device.clone()).boxed());
                 }
-                Err(e) => panic!("Failed to flush future: {:?}", e),
+                Err(e) => panic!("Failed to flush future: {e:?}"),
             }
         }
         _ => (),
