@@ -293,7 +293,7 @@ fn main() {
             position: [0.0, 1.0, 1.0],
         },
     ];
-    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[rustfmt::skip]
     let indices = vec![
         // ABC
         0u16, 1u16, 2u16,
@@ -439,7 +439,7 @@ fn main() {
 
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
 
-    let position = Vector3::new(-0.5, -0.5, 0.5);
+    let position = Vector3::new(-0.5, -0.5, -0.5);
 
     let rotation_start = Instant::now();
     event_loop.run(move |event, _, control_flow| match event {
