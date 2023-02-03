@@ -523,7 +523,7 @@ fn main() {
                 let up = Vector3::new(0.0, -1.0, 0.0);
                 let view = Matrix4::look_at_rh(eye, center, up);
 
-                let scale = Matrix4::from_scale(0.5);
+                let scale = Matrix4::from_scale(0.7);
 
                 let uniform_data = vs::ty::Data {
                     world: (Matrix4::from(rotation) * Matrix4::from_translation(position)).into(),
