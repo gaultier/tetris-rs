@@ -1,8 +1,9 @@
 use std::{f32::consts::FRAC_PI_2, io::Cursor, sync::Arc, time::Instant};
 
-use bytemuck::{Pod, Zeroable}; use vulkano::command_buffer::PrimaryCommandBufferAbstract;
+use bytemuck::{Pod, Zeroable};
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 use image::io::Reader as ImageReader;
+use vulkano::command_buffer::PrimaryCommandBufferAbstract;
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess},
     command_buffer::{
@@ -322,8 +323,8 @@ fn main() {
         6u16, 3u16, 4u16,
         // BCH
         1u16, 2u16, 7u16,
-        // BCF
-        1u16, 2u16, 5u16,
+        // CHF
+        2u16, 7u16, 5u16,
     ];
 
     let vertex_buffer = CpuAccessibleBuffer::from_iter(
@@ -579,7 +580,7 @@ fn main() {
                 let fov = Rad(FRAC_PI_2);
                 let proj = cgmath::perspective(fov, aspect_ratio, near, far);
 
-                let eye = Point3::new(0.0, 0.0, -2.0);
+                let eye = Point3::new(0.0, 1.0, -2.0);
                 let center = Point3::new(0.0, 0.0, 0.0);
                 let up = Vector3::new(0.0, -1.0, 0.0);
                 let view = Matrix4::look_at_rh(eye, center, up);
