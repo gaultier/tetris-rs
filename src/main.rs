@@ -15,7 +15,8 @@ use vulkano::{
         physical::PhysicalDeviceType, Device, DeviceCreateInfo, DeviceExtensions, Features,
         QueueCreateInfo,
     },
-    image::{view::ImageView, ImageAccess, ImageUsage, SwapchainImage},
+    format::Format,
+    image::{view::ImageView, AttachmentImage, ImageAccess, ImageUsage, SwapchainImage},
     impl_vertex,
     instance::{
         debug::{
@@ -27,6 +28,7 @@ use vulkano::{
     memory::allocator::{MemoryUsage, StandardMemoryAllocator},
     pipeline::{
         graphics::{
+            depth_stencil::DepthStencilState,
             input_assembly::InputAssemblyState,
             render_pass::PipelineRenderingCreateInfo,
             vertex_input::BuffersDefinition,
@@ -34,6 +36,7 @@ use vulkano::{
         },
         GraphicsPipeline, Pipeline, PipelineBindPoint,
     },
+    render_pass::StoreOp,
     swapchain::{
         acquire_next_image, AcquireError, Swapchain, SwapchainCreateInfo, SwapchainCreationError,
         SwapchainPresentInfo,
@@ -384,6 +387,7 @@ fn main() {
     let pipeline = GraphicsPipeline::start()
         .render_pass(PipelineRenderingCreateInfo {
             color_attachment_formats: vec![Some(swapchain.image_format())],
+            depth_attachment_format: Some(Format::D16_UNORM),
             ..Default::default()
         })
         .vertex_input_state(
@@ -395,6 +399,7 @@ fn main() {
         .vertex_shader(vs.entry_point("main").unwrap(), ())
         .viewport_state(ViewportState::viewport_dynamic_scissor_irrelevant())
         .fragment_shader(fs.entry_point("main").unwrap(), ())
+        .depth_stencil_state(DepthStencilState::simple_depth_test())
         .build(device.clone())
         .unwrap();
 
@@ -403,6 +408,26 @@ fn main() {
         dimensions: [0.0, 0.0],
         depth_range: 0.0..1.0,
     };
+
+    let dimensions = images[0].dimensions().width_height();
+    let depth_format: Format = Format::D16_UNORM;
+    // device
+    // .physical_device()
+    // .surface_formats(&surface, Default::default())
+    // .iter()
+    // .flat_map(|formats| formats)
+    // .find(
+    //     |(format, _)| match device.physical_device().format_properties(*format) {
+    //         Ok(props) if props.linear_tiling_features.depth_stencil_attachment => true,
+    //         _ => false,
+    //     },
+    // )
+    // .unwrap()
+    // .0;
+    let depth_buffer = ImageView::new_default(
+        AttachmentImage::transient(&memory_allocator, dimensions, depth_format).unwrap(),
+    )
+    .unwrap();
 
     let mut attachment_image_views = window_size_dependent_setup(&images, &mut viewport);
 
@@ -551,6 +576,12 @@ fn main() {
                             attachment_image_views[image_index as usize].clone(),
                         )
                     })],
+                    depth_attachment: Some(RenderingAttachmentInfo {
+                        load_op: vulkano::render_pass::LoadOp::Clear,
+                        store_op: StoreOp::DontCare,
+                        clear_value: Some([1.0, 1.0, 1.0, 1.0].into()),
+                        ..RenderingAttachmentInfo::image_view(depth_buffer.clone())
+                    }),
                     ..Default::default()
                 })
                 .unwrap()
@@ -610,6 +641,7 @@ fn window_size_dependent_setup(
 ) -> Vec<Arc<ImageView<SwapchainImage>>> {
     let dimensions = images[0].dimensions().width_height();
     viewport.dimensions = [dimensions[0] as f32, dimensions[1] as f32];
+
     images
         .iter()
         .map(|image| ImageView::new_default(image.clone()).unwrap())
