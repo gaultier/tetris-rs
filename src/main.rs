@@ -1,7 +1,8 @@
-use std::{f32::consts::FRAC_PI_2, sync::Arc, time::Instant};
+use std::{f32::consts::FRAC_PI_2, io::Cursor, sync::Arc, time::Instant};
 
-use bytemuck::{Pod, Zeroable};
+use bytemuck::{Pod, Zeroable}; use vulkano::command_buffer::PrimaryCommandBufferAbstract;
 use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
+use image::io::Reader as ImageReader;
 use vulkano::{
     buffer::{BufferUsage, CpuAccessibleBuffer, CpuBufferPool, TypedBufferAccess},
     command_buffer::{
@@ -16,7 +17,10 @@ use vulkano::{
         QueueCreateInfo,
     },
     format::Format,
-    image::{view::ImageView, AttachmentImage, ImageAccess, ImageUsage, SwapchainImage},
+    image::{
+        view::ImageView, AttachmentImage, ImageAccess, ImageDimensions, ImageUsage, ImmutableImage,
+        MipmapsCount, SwapchainImage,
+    },
     impl_vertex,
     instance::{
         debug::{
@@ -37,6 +41,7 @@ use vulkano::{
         GraphicsPipeline, Pipeline, PipelineBindPoint,
     },
     render_pass::StoreOp,
+    sampler::{Sampler, SamplerAddressMode, SamplerCreateInfo},
     swapchain::{
         acquire_next_image, AcquireError, Swapchain, SwapchainCreateInfo, SwapchainCreationError,
         SwapchainPresentInfo,
@@ -435,9 +440,65 @@ fn main() {
     let command_buffer_allocator =
         StandardCommandBufferAllocator::new(device.clone(), Default::default());
 
+    let mut uploads = AutoCommandBufferBuilder::primary(
+        &command_buffer_allocator,
+        queue.queue_family_index(),
+        CommandBufferUsage::OneTimeSubmit,
+    )
+    .unwrap();
+
+    let texture = {
+        let bytes = include_bytes!("texture.jpg").to_vec();
+        let mut image = ImageReader::new(Cursor::new(bytes));
+        image.set_format(image::ImageFormat::Jpeg);
+        let image = image.decode().unwrap();
+        let dimensions = ImageDimensions::Dim2d {
+            width: image.width(),
+            height: image.height(),
+            array_layers: 1,
+        };
+        let immutable_image = ImmutableImage::from_iter(
+            &memory_allocator,
+            image.into_rgba8().to_vec(),
+            dimensions,
+            MipmapsCount::One,
+            Format::R8G8B8A8_SRGB,
+            &mut uploads,
+        )
+        .unwrap();
+
+        ImageView::new_default(immutable_image).unwrap()
+    };
+
+    let sampler = Sampler::new(
+        device.clone(),
+        SamplerCreateInfo {
+            mag_filter: vulkano::sampler::Filter::Linear,
+            min_filter: vulkano::sampler::Filter::Linear,
+            address_mode: [SamplerAddressMode::Repeat; 3],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let layout0 = pipeline.layout().set_layouts().get(0).unwrap();
+    let textures_set = PersistentDescriptorSet::new(
+        &descriptor_set_allocator,
+        layout0.clone(),
+        [WriteDescriptorSet::image_view_sampler(0, texture, sampler)],
+    )
+    .unwrap();
+
     let mut recreate_swapchain = false;
 
-    let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
+    let mut previous_frame_end = Some(
+        uploads
+            .build()
+            .unwrap()
+            .execute(queue.clone())
+            .unwrap()
+            .boxed(),
+    );
 
     let position = Vector3::new(-0.5, -0.5, -0.5);
 
@@ -534,10 +595,10 @@ fn main() {
                 uniform_buffer.from_data(uniform_data).unwrap()
             };
 
-            let layout = pipeline.layout().set_layouts().get(0).unwrap();
-            let set = PersistentDescriptorSet::new(
+            let layout1 = pipeline.layout().set_layouts().get(1).unwrap();
+            let instances_set = PersistentDescriptorSet::new(
                 &descriptor_set_allocator,
-                layout.clone(),
+                layout1.clone(),
                 [WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)],
             )
             .unwrap();
@@ -591,7 +652,7 @@ fn main() {
                     PipelineBindPoint::Graphics,
                     pipeline.layout().clone(),
                     0,
-                    set,
+                    vec![textures_set.clone(), instances_set.clone()],
                 )
                 .bind_vertex_buffers(0, (vertex_buffer.clone(), instance_buffer.clone()))
                 .bind_index_buffer(index_buffer.clone())
